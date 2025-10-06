@@ -63,7 +63,7 @@ except ImportError:
 
 
 class AIGuardConversation:
-    def __init__(self, api_key= "AIzaSyDl4meToV6a8z6oooixUAH6aiDE2XeCADo", llm_provider="gemini", whisper_model="base"):
+    def __init__(self, api_key, llm_provider="gemini", whisper_model="base"):
         """
         Initialize the conversational AI Guard
         
@@ -711,10 +711,11 @@ def main():
     # whisper_choice = input("Enter choice (1-4, default=2): ").strip() or "2"
     # whisper_models = {"1": "tiny", "2": "base", "3": "small", "4": "medium"}
     # whisper_model = whisper_models.get(whisper_choice, "base")
-    
+    api_key = input("Enter your Gemini API key: ").strip() # You can also hardcode the API key instead of entering it every time
+                                                            # You could also setup a env file which has the API key and can be accessed every time
     # Initialize system
     guard = IntegratedAIGuard(
-        api_key="AIzaSyDl4meToV6a8z6oooixUAH6aiDE2XeCADo",
+        api_key=api_key,
         llm_provider="gemini",
         whisper_model="base"
     )
@@ -738,4 +739,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
