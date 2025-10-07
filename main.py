@@ -22,7 +22,8 @@ from guard_functions import (
     save_face_encodings,
     enroll_face_from_webcam,
     monitor_room,
-    speak
+    speak,
+    initialize_llm
 )
 
 
@@ -31,18 +32,41 @@ def print_banner():
     print("\n" + "="*70)
     print("    AI GUARD AGENT - INTELLIGENT ROOM MONITORING SYSTEM")
     print("    EE782: Advanced Topics in Machine Learning")
-    print("="*70)
-    print("\n    Components:")
-    print("    - Face Recognition (Milestone 2)")
-    print("    - Speech Recognition (Milestone 1)")
-    print("    - Text-to-Speech")
-    print("    - Conversational AI with Escalation (Milestone 3)")
     print("="*70 + "\n")
+
+
+def system_setup(config):
+    """
+    Setup phase: Initialize all components
+    
+    Args:
+        config: GuardConfig object
+    
+    Returns:
+        tuple: (whisper_model, llm_client, known_encodings, known_names)
+    """
+    print("-"*70)
+    print("SYSTEM SETUP")
+    print("-"*70)
+    
+    # Initialize configuration
+    print("Initializing system configuration...")
+    print("✓ Configuration loaded")
+    
+    # Initialize Whisper ASR model
+    print("\nLoading speech recognition model...")
+    whisper_model = initialize_whisper(config)
+    
+    # Initialize LLM
+    print("\nInitializing conversational AI...")
+    llm_client = initialize_llm(config)
+    
+    return whisper_model, llm_client
 
 
 def setup_face_enrollment(config):
     """
-    Milestone 2: Face Recognition and Enrollment
+    Face Recognition Setup and Enrollment
     
     Args:
         config: GuardConfig object
@@ -50,10 +74,6 @@ def setup_face_enrollment(config):
     Returns:
         tuple: (known_encodings, known_names)
     """
-    print("\n" + "-"*70)
-    print("MILESTONE 2: FACE RECOGNITION SETUP")
-    print("-"*70)
-    
     # Try to load existing encodings
     known_encodings, known_names = load_face_encodings(config)
     
@@ -101,7 +121,7 @@ def setup_face_enrollment(config):
 
 def wait_for_activation(whisper_model, config, activation_keyword="guard my room"):
     """
-    Milestone 1: Wait for activation command
+    Wait for activation command
     
     Args:
         whisper_model: Loaded WhisperModel instance
@@ -111,11 +131,12 @@ def wait_for_activation(whisper_model, config, activation_keyword="guard my room
     Returns:
         bool: True if activated successfully
     """
-    print("\n" + "-"*70)
-    print("MILESTONE 1: VOICE ACTIVATION")
-    print("-"*70)
-    print(f"\nActivation keyword: '{activation_keyword}'")
-    print("The system will listen for this command to enter guard mode.\n")
+    print("\n" + "="*70)
+    print("SYSTEM READY - WAITING FOR ACTIVATION")
+    print("="*70)
+    
+    speak("Do you want me to start guarding the room? Please say the command if you do.")
+    print("\nThe system will listen for this command to enter guard mode.\n")
     
     max_attempts = 3
     attempt = 0
@@ -127,7 +148,7 @@ def wait_for_activation(whisper_model, config, activation_keyword="guard my room
         if listen_for_command(whisper_model, config, activation_keyword):
             return True
         else:
-            print(f"Activation keyword not detected.")
+            print("Activation keyword not detected.")
             if attempt < max_attempts:
                 print("Please try again...\n")
     
@@ -143,65 +164,59 @@ def main():
         print_banner()
         
         # Initialize configuration
-        print("Initializing system configuration...")
         config = GuardConfig()
-        print("✓ Configuration loaded")
         
-        # Initialize Whisper ASR model
-        print("\nLoading speech recognition model...")
-        whisper_model = initialize_whisper(config)
-        
-        # ================================================================
-        # MILESTONE 2: Face Recognition and Enrollment
-        # ================================================================
-        known_encodings, known_names = setup_face_enrollment(config)
-        
-        if not known_encodings:
-            print("\n❌ Cannot proceed without enrolled faces. Exiting.")
-            return
-        
-        # ================================================================
-        # MILESTONE 1: Wait for Voice Activation
-        # ================================================================
-        print("\n" + "="*70)
-        print("SYSTEM READY - WAITING FOR ACTIVATION")
-        print("="*70)
-        
-        activated = wait_for_activation(whisper_model, config, activation_keyword="guard my room")
-        
-        if not activated:
-            print("\n❌ System not activated. Exiting.")
-            retry = input("Try activation again? (y/n): ").strip().lower()
-            if retry == 'y':
-                activated = wait_for_activation(whisper_model, config)
+        # Main loop - allows returning to enrollment after monitoring
+        while True:
+            # System Setup
+            whisper_model, llm_client = system_setup(config)
+            
+            # Face Recognition and Enrollment
+            known_encodings, known_names = setup_face_enrollment(config)
+            
+            if not known_encodings:
+                print("\nCannot proceed without enrolled faces. Exiting.")
+                return
+            
+            # Wait for Voice Activation
+            activated = wait_for_activation(whisper_model, config, activation_keyword="guard my room")
             
             if not activated:
-                return
-        
-        # ================================================================
-        # MILESTONE 3: Active Monitoring with Escalation
-        # ================================================================
-        print("\n" + "="*70)
-        print("MILESTONE 3: GUARD MODE ACTIVATED")
-        print("="*70)
-        
-        speak("Guard mode activated. I am now monitoring the room.")
-        print("\nThe AI Guard is now active and will:")
-        print("  1. Recognize trusted individuals")
-        print("  2. Detect unknown persons")
-        print("  3. Engage in escalating conversation with intruders")
-        print("\nPress 'q' in the video window to deactivate.\n")
-        
-        input("Press Enter to start monitoring...")
-        
-        # Start main monitoring loop
-        monitor_room(
-            whisper_model=whisper_model,
-            config=config,
-            known_encodings=known_encodings,
-            known_names=known_names,
-            video_source=0
-        )
+                print("\nSystem not activated. Exiting.")
+                retry = input("Try activation again? (y/n): ").strip().lower()
+                if retry == 'y':
+                    continue  # Go back to enrollment
+                else:
+                    return
+            
+            # Guard Mode Activated
+            print("\n" + "="*70)
+            print("GUARD MODE ACTIVATED")
+            print("="*70 + "\n")
+            
+            speak("Guard mode activated. I am now monitoring the room.")
+            
+            print("The AI Guard is now active and will:")
+            print("  1. Recognize trusted individuals")
+            print("  2. Detect unknown persons")
+            print("  3. Engage in escalating conversation with intruders")
+            print("\nPress 'q' in the video window to deactivate.\n")
+            
+            input("Press Enter to start monitoring...")
+            
+            # Start main monitoring loop
+            should_continue = monitor_room(
+                whisper_model=whisper_model,
+                llm_client=llm_client,
+                config=config,
+                known_encodings=known_encodings,
+                known_names=known_names,
+                video_source=0
+            )
+            
+            # Check if we should continue or exit
+            if not should_continue:
+                break
         
         # Deactivation
         print("\n" + "="*70)
@@ -210,11 +225,11 @@ def main():
         speak("Guard mode deactivated. Have a good day.")
         
     except KeyboardInterrupt:
-        print("\n\n⚠ System interrupted by user")
+        print("\n\nSystem interrupted by user")
         speak("System shutting down.")
     
     except Exception as e:
-        print(f"\n❌ Fatal error: {e}")
+        print(f"\nFatal error: {e}")
         import traceback
         traceback.print_exc()
         speak("System error occurred. Shutting down.")
@@ -232,11 +247,11 @@ def quick_test_mode():
     print("="*70 + "\n")
     
     config = GuardConfig()
-    whisper_model = initialize_whisper(config)
+    whisper_model, llm_client = system_setup(config)
     known_encodings, known_names = load_face_encodings(config)
     
     if not known_encodings:
-        print("❌ No enrolled faces. Please run normal mode first.")
+        print("No enrolled faces. Please run normal mode first.")
         return
     
     print(f"✓ Loaded {len(known_names)} known face(s)")
@@ -244,6 +259,7 @@ def quick_test_mode():
     
     monitor_room(
         whisper_model=whisper_model,
+        llm_client=llm_client,
         config=config,
         known_encodings=known_encodings,
         known_names=known_names,
