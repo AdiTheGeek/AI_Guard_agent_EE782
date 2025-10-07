@@ -200,7 +200,6 @@ def main():
             print("  1. Recognize trusted individuals")
             print("  2. Detect unknown persons")
             print("  3. Engage in escalating conversation with intruders")
-            print("\nPress 'q' in the video window to deactivate.\n")
             
             input("Press Enter to start monitoring...")
             
